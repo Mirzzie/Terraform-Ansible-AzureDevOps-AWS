@@ -1,0 +1,58 @@
+- name: Install Docker on Ubuntu EC2
+  hosts: ubuntu_ec2
+  become: true
+  tasks:
+    - name: Update apt and install dependencies
+      apt:
+        update_cache: yes
+
+    - name: Install prerequisites for Docker
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - software-properties-common
+
+    - name: Add Docker's official GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Set up Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Update apt again after adding Docker repository
+      apt:
+        update_cache: yes
+
+    - name: Install Docker
+      apt:
+        name: docker-ce
+        state: present
+
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Add 'ubuntu' user to the Docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Reboot to apply user group changes (optional)
+      reboot:
+        msg: "Rebooting to apply group changes"
+        reboot_timeout: 300
+        pre_reboot_delay: 5
+        post_reboot_delay: 5
+        test_command: "docker --version"
+      when: ansible_facts['user_groups']['ubuntu'] is defined
+
